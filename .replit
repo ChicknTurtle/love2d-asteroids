@@ -1,0 +1,18 @@
+run = "sh run.sh"
+entrypoint = "game/main.lua"
+modules = ["nodejs-20:v8-20230920-bd784b9"]
+
+hidden = ["run.sh","package-src","packaged-game"]
+
+[nix]
+channel = "stable-23_11"
+
+[languages.lua]
+pattern = "**/*.lua"
+
+[languages.lua.languageServer]
+start = ["lua-language-server"]
+
+[[ports]]
+localPort = 8080
+externalPort = 80
