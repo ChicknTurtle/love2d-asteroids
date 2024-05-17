@@ -1,0 +1,23 @@
+name: Question
+description: Ask a question
+title: Question
+assignees:
+  - ChicknTurtle
+labels:
+  - question
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What's your question?
+    validations:
+      required: true
+  - type: checkboxes
+    id: duplicate
+    attributes:
+      label: Duplicates
+      description: Make sure nobody has already asked this question!
+      options:
+        - label: I have checked the issues page for any duplicates.
+          required: true
