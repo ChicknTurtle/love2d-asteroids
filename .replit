@@ -1,4 +1,4 @@
-run = "sh run.sh"
+run = "sh .run.sh"
 entrypoint = "game/main.lua"
 modules = ["nodejs-20:v8-20230920-bd784b9"]
 
