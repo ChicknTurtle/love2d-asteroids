@@ -1,0 +1,23 @@
+name: Feature Suggestion
+description: Request a new feature!
+title: '[FEATURE] '
+assignees:
+  - ChicknTurtle
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What is your idea?
+      description: Explain how this feature would work, and why it should be added.
+    validations:
+      required: true
+  - type: checkboxes
+    id: duplicate
+    attributes:
+      label: Duplicates
+      description: Make sure nobody has already submitted this idea!
+      options:
+        - label: ' I have checked the issues page for any duplicates.'
+          required: true
