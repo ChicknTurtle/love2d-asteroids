@@ -19,5 +19,5 @@ body:
       label: Duplicates
       description: Make sure nobody has already submitted this idea!
       options:
-        - label: ' I have checked the issues page for any duplicates.'
+        - label: I have checked the issues page for any duplicates.
           required: true
