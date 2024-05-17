@@ -1,0 +1,32 @@
+name: Bug Report
+description: Submit a bug report
+title: '[Bug] '
+assignees:
+  - ChicknTurtle
+labels:
+  - bug
+body:
+  - type: textarea
+    attributes:
+      label: Bug
+      description: Describe the bug and how it occured. Provide a screenshot if needed.
+    validations:
+      required: true
+  - type: dropdown
+    id: version
+    attributes:
+      label: Version
+      description: Which version are you using?
+      options:
+        - App version (.exe, .app, ect.)
+        - Web version (on a website)
+    validations:
+      required: true
+  - type: checkboxes
+    id: duplicate
+    attributes:
+      label: Duplicates
+      description: Make sure nobody has already submitted this issue!
+      options:
+        - label: I have checked the issues page for any duplicates.
+          required: true
