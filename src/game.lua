@@ -4,10 +4,11 @@ local game = {
     width = 1920,
     height = 1080,
     frameCount = 0,
+    time = 0,
     seed = os.time(),
     level = 1,
     wrapMargin = 100,
-    pixelSize = 6,
+    pixelSize = 4,
     fastGraphics = true,
     -- Conatiners
     data = {},
@@ -37,7 +38,7 @@ local game = {
     bulletSpeed = 1000,    --pixels per second
     bulletCooldown = 0.2,  --seconds
     bulletSize = 6,        --pixels
-    bulletLifetime = 0.65, --seconds
+    bulletLifetime = 0.75, --seconds
     bulletTimer = 0,
     -- Asteroids
     asteroidSpeedMin = 50,  --pixels per second
@@ -275,9 +276,11 @@ function game.load()
     gfx.setDefaultFilter('linear')
     Game.shaders.pixel = gfx.newShader('assets/shaders/pixel.glsl')
     Game.shaders.pixel:send('amount', Game.pixelSize)
+    Game.shaders.background = gfx.newShader('assets/shaders/background.glsl')
     -- Create canvas objects
     gfx.setDefaultFilter('linear')
     Game.canvases.game = gfx.newCanvas(game.width, game.height)
+    Game.canvases.ui = gfx.newCanvas(game.width, game.height)
     -- Start level
     game.nextLevel()
 end
@@ -293,6 +296,10 @@ function game.update(dt)
     -- Limit dt to 10 fps
     -- Game will slow down under 10 fps, instead of inaccurate collisions
     dt = math.min(dt, 1 / 10)
+
+    -- Increment game time
+    game.time = game.time + dt
+    Game.shaders.background:send('time', game.time)
 
     -- Rotate player
     if keyboard.isDown("a") or keyboard.isDown("left") then
@@ -570,8 +577,6 @@ end
 function game.draw()
     local screenWidth, screenHeight = gfx.getWidth(), gfx.getHeight()
 
-    gfx.setCanvas(game.canvases.game)
-
     local function drawTransformed(tx, ty, x, y, dir, func, ...)
         gfx.translate(tx, ty)
         gfx.rotate(dir)
@@ -590,13 +595,17 @@ function game.draw()
         drawTransformed(0, height, x, y, dir, func, ...)
     end
 
+    gfx.setCanvas(game.canvases.ui)
+    gfx.clear()
+    gfx.setCanvas(game.canvases.game)
+    gfx.clear()
+
     -- Draw background
-    gfx.setBackgroundColor(0, 0, 0)
-    gfx.setColor(0.025, 0.025, 0.1)
+    gfx.setColor(0,0,0)
     gfx.rectangle('fill', 0, 0, game.width, game.height)
-    gfx.setLineWidth(4)
-    gfx.setColor(1, 1, 1, 0.1)
-    gfx.rectangle('line', 0, 0, game.width, game.height)
+    gfx.setShader(game.shaders.background)
+    gfx.rectangle('fill', 0, 0, game.width, game.height)
+    gfx.setShader()
 
     -- Draw bullets
     for i, bullet in ipairs(game.bullets) do
@@ -713,6 +722,8 @@ function game.draw()
         gfx.pop()
     end
 
+    gfx.setCanvas(game.canvases.ui)
+
     -- Draw hitboxes
     if keyboard.isDown('.') then
         gfx.setColor(0, 1, 0, 0.5)
@@ -755,9 +766,11 @@ function game.draw()
     local scale = math.min(scaleX, scaleY)
     local offsetX = (screenWidth - game.width * scale) / 2
     local offsetY = (screenHeight - game.height * scale) / 2
-    gfx.setShader(Game.shaders.pixel)
+    -- Game canvas
+    --gfx.setShader(Game.shaders.pixel)
     gfx.draw(game.canvases.game, offsetX, offsetY, 0, scale)
     gfx.setShader()
+    gfx.draw(game.canvases.ui, offsetX, offsetY, 0, scale)
 end
 
 return game
