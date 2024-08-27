@@ -1,4 +1,3 @@
-
 -- Define imports globally
 t = require 'lib.turtleutils'
 inspect = require 'lib.inspect'
@@ -23,7 +22,7 @@ function getDirection(x1, y1, x2, y2)
 end
 
 function love.load()
-    window.updateMode(Game.width,Game.height)
+    window.updateMode(Game.width, Game.height)
 
     Game.load()
 end
@@ -38,7 +37,7 @@ function love.keypressed(key, scancode, isrepeat)
     do end
 end
 
-function love.resize(w,h)
+function love.resize(w, h)
     do end
 end
 

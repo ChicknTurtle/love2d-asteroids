@@ -7,6 +7,7 @@ local game = {
     seed = os.time(),
     level = 1,
     wrapMargin = 100,
+    pixelSize = 20,
     fastGraphics = true,
     -- Conatiners
     data = {},
@@ -272,11 +273,11 @@ function game.load()
     game.fonts.VisitorSmall:setFilter('nearest')
     -- Create shader objects
     gfx.setDefaultFilter('linear')
-    --Game.shaders.pixel = gfx.newShader('assets/shaders/pixel.glsl')
-    --Game.shaders.pixel:send('amount', Game.pixelSize)
+    Game.shaders.pixel = gfx.newShader('assets/shaders/pixel.glsl')
+    Game.shaders.pixel:send('amount', Game.pixelSize)
     -- Create canvas objects
     gfx.setDefaultFilter('linear')
-    game.canvases.game = gfx.newCanvas(game.width, game.height)
+    Game.canvases.game = gfx.newCanvas(game.width, game.height)
     -- Start level
     game.nextLevel()
 end
@@ -754,6 +755,7 @@ function game.draw()
     local scale = math.min(scaleX, scaleY)
     local offsetX = (screenWidth - game.width * scale) / 2
     local offsetY = (screenHeight - game.height * scale) / 2
+    gfx.setShader(Game.shaders.pixel)
     gfx.draw(game.canvases.game, offsetX, offsetY, 0, scale)
 end
 

@@ -1,4 +1,3 @@
-
 local name = "Asteroid Game"
 
 -- Initial window config
