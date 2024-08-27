@@ -3,7 +3,7 @@
 An asteroids clone made with [Love2d](https://love2d.org/).  
 There are no releases yet, as the game is unfinished. If you want to play or modify the unfinished version, you can either fork the repl or download `.packaged/game.love` (a zip file) and run it using love.
 
-Suggest features and report bugs on [github](https://github.com/ChicknTurtle/love2d-asteroids/issues).
+Suggest features and report bugs on github [here](https://github.com/ChicknTurtle/love2d-asteroids/issues).
 
 ---
 
