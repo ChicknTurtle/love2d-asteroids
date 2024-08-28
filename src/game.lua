@@ -7,6 +7,7 @@ local game = {
     time = 0,
     seed = os.time(),
     level = 1,
+    score = 0,
     wrapMargin = 100,
     pixelSize = 4,
     fastGraphics = true,
@@ -276,7 +277,7 @@ function game.load()
     gfx.setDefaultFilter('linear')
     Game.shaders.pixel = gfx.newShader('assets/shaders/pixel.glsl')
     Game.shaders.pixel:send('amount', Game.pixelSize)
-    Game.shaders.background = gfx.newShader('assets/shaders/background.glsl')
+    Game.shaders.stars = gfx.newShader('assets/shaders/stars.glsl')
     -- Create canvas objects
     gfx.setDefaultFilter('linear')
     Game.canvases.game = gfx.newCanvas(game.width, game.height)
@@ -299,7 +300,7 @@ function game.update(dt)
 
     -- Increment game time
     game.time = game.time + dt
-    Game.shaders.background:send('time', game.time)
+    Game.shaders.stars:send('time', game.time)
 
     -- Rotate player
     if keyboard.isDown("a") or keyboard.isDown("left") then
@@ -488,7 +489,7 @@ function game.update(dt)
         end
         -- Check bullet + ufo collisions
         for i, bullet in ipairs(game.bullets) do
-            if collisionWrapped(ufo.x, ufo.y, bullet.x, bullet.y, 40 + game.bulletSize) then
+            if collisionWrapped(ufo.x, ufo.y, bullet.x, bullet.y, 40 + game.bulletSize * 2) then
                 -- A bullet hit a UFO
                 ufo.health = ufo.health - 1
                 ufo.flashTimer = 0.1
@@ -601,9 +602,8 @@ function game.draw()
     gfx.clear()
 
     -- Draw background
-    gfx.setColor(0,0,0)
-    gfx.rectangle('fill', 0, 0, game.width, game.height)
-    gfx.setShader(game.shaders.background)
+    gfx.setColor(0, 0, 0)
+    gfx.setShader(game.shaders.stars)
     gfx.rectangle('fill', 0, 0, game.width, game.height)
     gfx.setShader()
 
@@ -739,9 +739,9 @@ function game.draw()
             gfx.setColor(1, 0, 1, 0.5)
             drawWrapped(0, 0, 0, gfx.circle, "fill", ufo.x, ufo.y, 40)
         end
-        -- This bullet hitbox used for bullet+bullet collisions
+        -- Bullets
         for i, bullet in ipairs(game.bullets) do
-            gfx.setColor(0, 0, 1, 0.5)
+            gfx.setColor(1, 1, 1, 0.75)
             drawWrapped(0, 0, 0, gfx.circle, "fill", bullet.x, bullet.y, game.bulletSize * 2)
         end
     end
@@ -750,8 +750,10 @@ function game.draw()
     gfx.setColor(1, 1, 1)
     gfx.setDefaultFilter('nearest')
     gfx.setFont(game.fonts.Visitor)
-    gfx.print(t.round(timer.getFPS()) .. " FPS", 20, 20, 0, 1)
-    gfx.print("Level " .. game.level, 20, 60, 0, 1)
+    gfx.print("Level " .. game.level, 20, 20, 0, 1)
+    gfx.print("Score: " .. game.score, 20, 60, 0, 1)
+    local fps = t.round(timer.getFPS()) .. " FPS"
+    gfx.print(fps, game.width-game.fonts.Visitor:getWidth(fps)-20, 20, 0, 1)
     if keyboard.isDown(',') then
         gfx.setFont(game.fonts.VisitorSmall)
         gfx.print(#game.asteroids .. " asteroids", 20, 100, 0, 1)
