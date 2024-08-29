@@ -1,8 +1,5 @@
 local game = {
     -- Global game variables
-    name = "Asteroid Game",
-    width = 1920,
-    height = 1080,
     frameCount = 0,
     time = 0,
     seed = os.time(),
@@ -10,6 +7,7 @@ local game = {
     score = 0,
     wrapMargin = 100,
     pixelSize = 4,
+    paused = false,
     fastGraphics = true,
     -- Conatiners
     data = {},
@@ -39,7 +37,7 @@ local game = {
     bulletSpeed = 1000,    --pixels per second
     bulletCooldown = 0.2,  --seconds
     bulletSize = 6,        --pixels
-    bulletLifetime = 0.75, --seconds
+    bulletLifetime = 1, --seconds
     bulletTimer = 0,
     -- Asteroids
     asteroidSpeedMin = 50,  --pixels per second
@@ -152,11 +150,11 @@ game.spawnAsteroid = function(parent, overrides)
         flashTimer = 0,
     }
     if math.random(0, 1) == 1 then
-        asteroid.x = game.width * math.random(0, 1)
-        asteroid.y = game.height * math.random()
+        asteroid.x = Main.width * math.random(0, 1)
+        asteroid.y = Main.height * math.random()
     else
-        asteroid.x = game.width * math.random()
-        asteroid.y = game.height * math.random(0, 1)
+        asteroid.x = Main.width * math.random()
+        asteroid.y = Main.height * math.random(0, 1)
     end
     -- Inherit some values from parent
     if parent then
@@ -188,11 +186,11 @@ game.spawnUfo = function(level)
         moveTimer = 0,
     }
     if math.random(0, 1) == 1 then
-        ufo.x = game.width * math.random(0, 1)
-        ufo.y = game.height * math.random()
+        ufo.x = Main.width * math.random(0, 1)
+        ufo.y = Main.height * math.random()
     else
-        ufo.x = game.width * math.random()
-        ufo.y = game.height * math.random(0, 1)
+        ufo.x = Main.width * math.random()
+        ufo.y = Main.height * math.random(0, 1)
     end
     -- Add ufo to table
     table.insert(game.ufos, ufo)
@@ -261,8 +259,8 @@ function game.load()
     -- Print rng seed
     t.log("Seed: " .. game.seed)
     -- Spawn player in center of screen
-    game.player.x = game.width / 2
-    game.player.y = game.height / 2
+    game.player.x = Main.width / 2
+    game.player.y = Main.height / 2
     game.player.dir = math.pi * 0.75
     -- Create font objects
     game.fonts.BooCity = gfx.newFont('assets/fonts/BooCity.ttf', 40)
@@ -280,8 +278,8 @@ function game.load()
     Game.shaders.stars = gfx.newShader('assets/shaders/stars.glsl')
     -- Create canvas objects
     gfx.setDefaultFilter('linear')
-    Game.canvases.game = gfx.newCanvas(game.width, game.height)
-    Game.canvases.ui = gfx.newCanvas(game.width, game.height)
+    Game.canvases.game = gfx.newCanvas(Main.width, Main.height)
+    Game.canvases.ui = gfx.newCanvas(Main.width, Main.height)
     -- Start level
     game.nextLevel()
 end
@@ -332,15 +330,15 @@ function game.update(dt)
 
     -- Screen wrap
     if game.player.x < 0 then
-        game.player.x = game.width
+        game.player.x = Main.width
     end
-    if game.player.x > game.width then
+    if game.player.x > Main.width then
         game.player.x = 0
     end
     if game.player.y < 0 then
-        game.player.y = game.height
+        game.player.y = Main.height
     end
-    if game.player.y > game.height then
+    if game.player.y > Main.height then
         game.player.y = 0
     end
 
@@ -371,15 +369,15 @@ function game.update(dt)
         bullet.y = bullet.y + dy
         -- Screen wrap
         if bullet.x < 0 then
-            bullet.x = game.width
+            bullet.x = Main.width
         end
-        if bullet.x > game.width then
+        if bullet.x > Main.width then
             bullet.x = 0
         end
         if bullet.y < 0 then
-            bullet.y = game.height
+            bullet.y = Main.height
         end
-        if bullet.y > game.height then
+        if bullet.y > Main.height then
             bullet.y = 0
         end
         -- Update timer
@@ -405,15 +403,15 @@ function game.update(dt)
         asteroid.flashTimer = asteroid.flashTimer - dt
         -- Screen wrap
         if asteroid.x < 0 then
-            asteroid.x = game.width
+            asteroid.x = Main.width
         end
-        if asteroid.x > game.width then
+        if asteroid.x > Main.width then
             asteroid.x = 0
         end
         if asteroid.y < 0 then
-            asteroid.y = game.height
+            asteroid.y = Main.height
         end
-        if asteroid.y > game.height then
+        if asteroid.y > Main.height then
             asteroid.y = 0
         end
     end
@@ -424,15 +422,15 @@ function game.update(dt)
         ufo.moveTimer = ufo.moveTimer - dt
         -- Screen wrap
         if ufo.x < 0 then
-            ufo.x = game.width
+            ufo.x = Main.width
         end
-        if ufo.x > game.width then
+        if ufo.x > Main.width then
             ufo.x = 0
         end
         if ufo.y < 0 then
-            ufo.y = game.height
+            ufo.y = Main.height
         end
-        if ufo.y > game.height then
+        if ufo.y > Main.height then
             ufo.y = 0
         end
     end
@@ -443,7 +441,7 @@ function game.update(dt)
     end
     -- Checks circle collisions wrapped
     local function collisionWrapped(x1, y1, x2, y2, size)
-        local width, height = game.width, game.height
+        local width, height = Main.width, Main.height
         local check1 = collisionTransformed(0, 0, x1, y1, x2, y2, size)
         local check2 = collisionTransformed(0, -height, x1, y1, x2, y2, size)
         local check3 = collisionTransformed(-width, 0, x1, y1, x2, y2, size)
@@ -534,7 +532,7 @@ function game.update(dt)
     -- Check if player was hit
     if game.player.death == true then
         game.player.death = false
-        game.player.x, game.player.y = game.width / 2, game.height / 2
+        game.player.x, game.player.y = Main.width / 2, Main.height / 2
         game.player.xv, game.player.yv = 0, 0
     end
 
@@ -588,7 +586,7 @@ function game.draw()
         gfx.translate(-tx, -ty)
     end
     local function drawWrapped(x, y, dir, func, ...)
-        local width, height = game.width, game.height
+        local width, height = Main.width, Main.height
         drawTransformed(0, 0, x, y, dir, func, ...)
         drawTransformed(0, -height, x, y, dir, func, ...)
         drawTransformed(-width, 0, x, y, dir, func, ...)
@@ -604,7 +602,7 @@ function game.draw()
     -- Draw background
     gfx.setColor(0, 0, 0)
     gfx.setShader(game.shaders.stars)
-    gfx.rectangle('fill', 0, 0, game.width, game.height)
+    gfx.rectangle('fill', 0, 0, Main.width, Main.height)
     gfx.setShader()
 
     -- Draw bullets
@@ -753,7 +751,7 @@ function game.draw()
     gfx.print("Level " .. game.level, 20, 20, 0, 1)
     gfx.print("Score: " .. game.score, 20, 60, 0, 1)
     local fps = t.round(timer.getFPS()) .. " FPS"
-    gfx.print(fps, game.width-game.fonts.Visitor:getWidth(fps)-20, 20, 0, 1)
+    gfx.print(fps, Main.width-game.fonts.Visitor:getWidth(fps)-20, 20, 0, 1)
     if keyboard.isDown(',') then
         gfx.setFont(game.fonts.VisitorSmall)
         gfx.print(#game.asteroids .. " asteroids", 20, 100, 0, 1)
@@ -763,13 +761,13 @@ function game.draw()
 
     -- Draw game onto real canvas
     gfx.setCanvas()
-    local scaleX = screenWidth / game.width
-    local scaleY = screenHeight / game.height
+    local scaleX = screenWidth / Main.width
+    local scaleY = screenHeight / Main.height
     local scale = math.min(scaleX, scaleY)
-    local offsetX = (screenWidth - game.width * scale) / 2
-    local offsetY = (screenHeight - game.height * scale) / 2
+    local offsetX = (screenWidth - Main.width * scale) / 2
+    local offsetY = (screenHeight - Main.height * scale) / 2
     -- Game canvas
-    --gfx.setShader(Game.shaders.pixel)
+    gfx.setShader(Game.shaders.pixel)
     gfx.draw(game.canvases.game, offsetX, offsetY, 0, scale)
     gfx.setShader()
     gfx.draw(game.canvases.ui, offsetX, offsetY, 0, scale)

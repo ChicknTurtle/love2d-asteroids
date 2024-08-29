@@ -7,18 +7,18 @@ local turtleutils = {
 }
 
 local function check(name, value)
-    if not value then
+    if value == nil then
         error("'"..name.."' is a required argument.", 3)
     end
 end
 local function checkType(name, value, type1)
     if type(value) ~= type1 then
-        error("Expected '"..name.."' to be a "..type1..". Got type '"..type1(value).."' instead.", 3)
+        error("Expected '"..name.."' to be a "..type1..". Got type '"..type(value).."' instead.", 3)
     end
 end
 local function checkTwoTypes(name, value, type1, type2)
     if type(value) ~= type1 and type(value) ~= type2 then
-        error("Expected '"..name.."' to be a "..type1.." or "..type2..". Got type '"..type1(value).."' instead.", 3)
+        error("Expected '"..name.."' to be a "..type1.." or "..type2..". Got type '"..type(value).."' instead.", 3)
     end
 end
 local function checkWholeNumber(name, value)
@@ -43,18 +43,14 @@ end
 -- `logdebug()`  
 -- `logwarn()`  
 -- `logerror()`  
----@param msg string
+---@param msg any
 ---@param _lvl? number
 ---@return nil
 function turtleutils.log(msg, _lvl)
-    check('msg', msg)
-    checkType('msg', msg, 'string')
-    if _lvl then
-        checkType('_lvl', _lvl, 'number')
-        checkWholeNumber('_lvl', _lvl)
-    else
-        _lvl = 1
-    end
+    msg = tostring(msg)
+    _lvl = _lvl or 1
+    checkType('_lvl', _lvl, 'number')
+    checkWholeNumber('_lvl', _lvl)
     local color = ''
     local level = ''
     if _lvl == 0 then
@@ -75,7 +71,7 @@ end
 -- **Logs a message to the console with level DEBUG.**  
 -- `msg` the message to log  
 -- &nbsp; &nbsp; *Type: string, Required*  
----@param msg string
+---@param msg any
 ---@return nil
 function turtleutils.logdebug(msg)
     turtleutils.log(msg, 0)
@@ -83,7 +79,7 @@ end
 -- **Logs a message to the console with level WARN.**  
 -- `msg` the message to log  
 -- &nbsp; &nbsp; *Type: string, Required*  
----@param msg string
+---@param msg any
 ---@return nil
 function turtleutils.logwarn(msg)
     turtleutils.log(msg, 2)
@@ -91,7 +87,7 @@ end
 -- **Logs a message to the console with level ERROR.**  
 -- `msg` the message to log  
 -- &nbsp; &nbsp; *Type: string, Required*  
----@param msg string
+---@param msg any
 ---@return nil
 function turtleutils.logerror(msg)
     turtleutils.log(msg, 3)
@@ -278,23 +274,45 @@ end
 ---@param max? number
 ---@return number
 function turtleutils.clamp(num, min, max)
-    check('num', num)
-    checkType('num', num, 'number')
-    if min then
-        if type(min) ~= "number" then
-            error("Expected 'min' to be a number. Got type '"..type(min).."' instead.", 2)
-        end
-    end
-    if max then
-        if type(max) ~= "number" then
-            error("Expected 'max' to be a number. Got type '"..type(max).."' instead.", 2)
-        end
-    end
     min = min or -math.huge
     max = max or math.huge
+    check('num', num)
+    checkType('num', num, 'number')
+    checkType('min', min, 'number')
+    checkType('max', max, 'number')
 
     -- clamp
     return math.min(math.max(num, min), max)
+end
+
+-- **Toggles a value.**  
+-- `val` the value to toggle  
+-- &nbsp; &nbsp; *Type: boolean/integer, Required*  
+-- 
+-- **Example Usage:**  
+-- `toggle(true) -> false`  
+-- `toggle(false) -> true`  
+-- `toggle(0) -> 1`  
+---@param val boolean|integer
+---@return boolean|integer
+function turtleutils.toggle(val)
+    check('val', val)
+    checkTwoTypes('val', val, 'boolean', 'number')
+    if type(val) == 'number' then
+        checkBetween('val', val, 0, 1)
+        checkWholeNumber('val', val)
+    end
+
+    -- toggle
+    if val == true then
+        return false
+    elseif val == false then
+        return true
+    elseif val == 1 then
+        return 0
+    else --if val == 0 then
+        return 1
+    end
 end
 
 -- **Gets the distance between two points.**  
