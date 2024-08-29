@@ -17,6 +17,11 @@ Main = {
     name = "Asteroid Game",
     width = 1920,
     height = 1080,
+    -- Containers
+    data = {},
+    fonts = {},
+    shaders = {},
+    canvases = {},
 }
 
 Game = require 'game'

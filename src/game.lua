@@ -6,14 +6,10 @@ local game = {
     level = 1,
     score = 0,
     wrapMargin = 100,
-    pixelSize = 4,
+    pixelation = 6,
     paused = false,
     fastGraphics = true,
     -- Conatiners
-    data = {},
-    fonts = {},
-    shaders = {},
-    canvases = {},
     bullets = {},
     asteroids = {},
     ufos = {},
@@ -34,10 +30,10 @@ local game = {
         hitboxSize = 15, --pixels
     },
     -- Bullets
-    bulletSpeed = 1000,    --pixels per second
-    bulletCooldown = 0.2,  --seconds
-    bulletSize = 6,        --pixels
-    bulletLifetime = 1, --seconds
+    bulletSpeed = 1000,   --pixels per second
+    bulletCooldown = 0.2, --seconds
+    bulletSize = 6,       --pixels
+    bulletLifetime = 1.5, --seconds
     bulletTimer = 0,
     -- Asteroids
     asteroidSpeedMin = 50,  --pixels per second
@@ -123,9 +119,9 @@ local game = {
 
 game.saveData = function()
     -- Save game data
-    game.data.level = game.level
+    Main.data.level = game.level
     -- Write to file
-    local success, message = filesystem.write("game.data", binser.serialize(game.data))
+    local success, message = filesystem.write("Main.data", binser.serialize(Main.data))
     if success then
         t.log("Saved game.")
     else
@@ -247,15 +243,15 @@ end
 
 function game.load()
     -- Load game data
-    if filesystem.getInfo("game.data") then
-        local contents, size = filesystem.read("game.data")
-        game.data = binser.deserialize(contents)[1]
+    if filesystem.getInfo("Main.data") then
+        local contents, size = filesystem.read("Main.data")
+        Main.data = binser.deserialize(contents)[1]
         t.log("Loaded game data. (" .. tostring(size) .. "bytes)")
     else
         t.logwarn("No game data to load.")
     end
     -- Load level
-    game.level = game.data.level or 1
+    game.level = Main.data.level or 1
     -- Print rng seed
     t.log("Seed: " .. game.seed)
     -- Spawn player in center of screen
@@ -263,23 +259,24 @@ function game.load()
     game.player.y = Main.height / 2
     game.player.dir = math.pi * 0.75
     -- Create font objects
-    game.fonts.BooCity = gfx.newFont('assets/fonts/BooCity.ttf', 40)
-    game.fonts.BooCity:setFilter('nearest')
-    game.fonts.BooCitySmall = gfx.newFont('assets/fonts/BooCity.ttf', 20)
-    game.fonts.BooCitySmall:setFilter('nearest')
-    game.fonts.Visitor = gfx.newFont('assets/fonts/Visitor.ttf', 40)
-    game.fonts.Visitor:setFilter('nearest')
-    game.fonts.VisitorSmall = gfx.newFont('assets/fonts/Visitor.ttf', 20)
-    game.fonts.VisitorSmall:setFilter('nearest')
+    Main.fonts.BooCity = gfx.newFont('assets/fonts/BooCity.ttf', 40)
+    Main.fonts.BooCity:setFilter('nearest')
+    Main.fonts.BooCitySmall = gfx.newFont('assets/fonts/BooCity.ttf', 20)
+    Main.fonts.BooCitySmall:setFilter('nearest')
+    Main.fonts.Visitor = gfx.newFont('assets/fonts/Visitor.ttf', 40)
+    Main.fonts.Visitor:setFilter('nearest')
+    Main.fonts.VisitorSmall = gfx.newFont('assets/fonts/Visitor.ttf', 20)
+    Main.fonts.VisitorSmall:setFilter('nearest')
     -- Create shader objects
     gfx.setDefaultFilter('linear')
-    Game.shaders.pixel = gfx.newShader('assets/shaders/pixel.glsl')
-    Game.shaders.pixel:send('amount', Game.pixelSize)
-    Game.shaders.stars = gfx.newShader('assets/shaders/stars.glsl')
+    Main.shaders.pixel = gfx.newShader('assets/shaders/pixel.glsl')
+    Main.shaders.pixel:send('amount', Game.pixelation)
+    Main.shaders.pixel:send('size', {Main.width,Main.height})
+    Main.shaders.stars = gfx.newShader('assets/shaders/stars.glsl')
     -- Create canvas objects
     gfx.setDefaultFilter('linear')
-    Game.canvases.game = gfx.newCanvas(Main.width, Main.height)
-    Game.canvases.ui = gfx.newCanvas(Main.width, Main.height)
+    Main.canvases.game = gfx.newCanvas(Main.width, Main.height)
+    Main.canvases.ui = gfx.newCanvas(Main.width, Main.height)
     -- Start level
     game.nextLevel()
 end
@@ -298,7 +295,7 @@ function game.update(dt)
 
     -- Increment game time
     game.time = game.time + dt
-    Game.shaders.stars:send('time', game.time)
+    Main.shaders.stars:send('time', game.time)
 
     -- Rotate player
     if keyboard.isDown("a") or keyboard.isDown("left") then
@@ -594,14 +591,14 @@ function game.draw()
         drawTransformed(0, height, x, y, dir, func, ...)
     end
 
-    gfx.setCanvas(game.canvases.ui)
+    gfx.setCanvas(Main.canvases.ui)
     gfx.clear()
-    gfx.setCanvas(game.canvases.game)
+    gfx.setCanvas(Main.canvases.game)
     gfx.clear()
 
     -- Draw background
     gfx.setColor(0, 0, 0)
-    gfx.setShader(game.shaders.stars)
+    gfx.setShader(Main.shaders.stars)
     gfx.rectangle('fill', 0, 0, Main.width, Main.height)
     gfx.setShader()
 
@@ -720,7 +717,7 @@ function game.draw()
         gfx.pop()
     end
 
-    gfx.setCanvas(game.canvases.ui)
+    gfx.setCanvas(Main.canvases.ui)
 
     -- Draw hitboxes
     if keyboard.isDown('.') then
@@ -747,13 +744,13 @@ function game.draw()
     -- Draw text
     gfx.setColor(1, 1, 1)
     gfx.setDefaultFilter('nearest')
-    gfx.setFont(game.fonts.Visitor)
+    gfx.setFont(Main.fonts.Visitor)
     gfx.print("Level " .. game.level, 20, 20, 0, 1)
     gfx.print("Score: " .. game.score, 20, 60, 0, 1)
     local fps = t.round(timer.getFPS()) .. " FPS"
-    gfx.print(fps, Main.width-game.fonts.Visitor:getWidth(fps)-20, 20, 0, 1)
+    gfx.print(fps, Main.width - Main.fonts.Visitor:getWidth(fps) - 20, 20, 0, 1)
     if keyboard.isDown(',') then
-        gfx.setFont(game.fonts.VisitorSmall)
+        gfx.setFont(Main.fonts.VisitorSmall)
         gfx.print(#game.asteroids .. " asteroids", 20, 100, 0, 1)
         gfx.print(#game.bullets .. " bullets", 20, 120, 0, 1)
         gfx.print(#game.particles .. " particles", 20, 140, 0, 1)
@@ -767,10 +764,10 @@ function game.draw()
     local offsetX = (screenWidth - Main.width * scale) / 2
     local offsetY = (screenHeight - Main.height * scale) / 2
     -- Game canvas
-    gfx.setShader(Game.shaders.pixel)
-    gfx.draw(game.canvases.game, offsetX, offsetY, 0, scale)
+    gfx.setShader(Main.shaders.pixel)
+    gfx.draw(Main.canvases.game, offsetX, offsetY, 0, scale)
     gfx.setShader()
-    gfx.draw(game.canvases.ui, offsetX, offsetY, 0, scale)
+    gfx.draw(Main.canvases.ui, offsetX, offsetY, 0, scale)
 end
 
 return game

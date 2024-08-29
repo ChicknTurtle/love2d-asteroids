@@ -1,8 +1,18 @@
-extern int amount;
-vec4 effect(vec4 color, Image texture, vec2 tc, vec2 pixel_coords){
-    vec2 size = vec2(love_ScreenSize.x, love_ScreenSize.y);
-    vec2 coords = (floor(tc * size / vec2(amount,amount)) + vec2(0.5,0.5)) * vec2(amount,amount) / size;
-    vec4 col = Texel(texture, coords);
+extern float amount;
+extern vec2 size;
 
+vec4 effect(vec4 color, Image texture, vec2 tc, vec2 pixel_coords) {
+    vec2 pixelSize = vec2(amount / 1000.0);
+
+    if (size.x > size.y) {
+        pixelSize.x *= (size.y / size.x);
+    } else {
+        pixelSize.y *= (size.x / size.y);
+    }
+
+    vec2 coords = vec2(floor(tc.x / pixelSize.x) * pixelSize.x,
+                       floor(tc.y / pixelSize.y) * pixelSize.y);
+
+    vec4 col = Texel(texture, coords);
     return col;
 }
