@@ -8,6 +8,7 @@ local game = {
     wrapMargin = 100,
     pixelation = 6,
     paused = false,
+    pixelShaderEnabled = true,
     fastGraphics = true,
     -- Conatiners
     bullets = {},
@@ -23,17 +24,19 @@ local game = {
         dir = 0,
         moving = false,
         death = false,
+        iframes = 0,
+        iframetime = 3,  --seconds
         moveSpeed = 750, --pixels per second
         turnSpeed = 200, --degrees per second
-        friction = 1,
+        friction = 1,    --idk
         size = 1.75,     --size multiplier
         hitboxSize = 15, --pixels
     },
     -- Bullets
-    bulletSpeed = 1000,   --pixels per second
-    bulletCooldown = 0.2, --seconds
-    bulletSize = 6,       --pixels
-    bulletLifetime = 1.5, --seconds
+    bulletSpeed = 1000,    --pixels per second
+    bulletCooldown = 0.2,  --seconds
+    bulletSize = 6,        --pixels
+    bulletLifetime = 1.25, --seconds
     bulletTimer = 0,
     -- Asteroids
     asteroidSpeedMin = 50,  --pixels per second
@@ -43,16 +46,40 @@ local game = {
     asteroidSizeMin = 2,    --size
     asteroidSizeMax = 3,    --size
     -- UFOs
-    ufoMoveTime = 1,        --seconds
-    ufoWaitTime = 1,        --seconds
+    ufodata = {
+        {                      -- blue
+            health = 3,
+            moveTime = 1,      --seconds
+            waitTime = 2,      --seconds
+            shootTime = 3,     --seconds
+            moveSpeed = 150,   --multiplier
+            bulletSpeed = 400, --pixels per second
+        },
+        {                      -- red
+            health = 10,
+            moveTime = 0.8,
+            waitTime = 1.8,
+            shootTime = 1,
+            moveSpeed = 150,
+            bulletSpeed = 400,
+        },
+        { -- green
+            health = 5,
+            moveTime = 0.4,
+            waitTime = 0,
+            shootTime = 2,
+            moveSpeed = 400,
+            bulletSpeed = 450,
+        },
+    },
     -- Levels
     levels = {
-        {                       -- 1
-            asteroidAmount = 5, --amount
-            asteroidSpeed = 0,  --added to asteroidSpeedMax
-            asteroidSize = 0,   --added to asteroidSizeMax
+        { -- 1
+            asteroidAmount = 5,
+            asteroidSpeed = 0,
+            asteroidSize = 0,
         },
-        {                       -- 2
+        { -- 2
             asteroidAmount = 6,
             asteroidSpeed = 5,
             asteroidSize = 0,
@@ -114,33 +141,72 @@ local game = {
                 },
             },
         },
+        { -- 11
+            asteroidAmount = 8,
+            asteroidSpeed = 2,
+            asteroidSize = 1,
+            ufos = {
+                lvl2 = 1,
+            },
+        },
+        { -- 12
+            asteroidAmount = 6,
+            asteroidSpeed = 2,
+            asteroidSize = 1,
+            ufos = {
+                lvl1 = 2,
+                lvl2 = 1,
+            },
+        },
+        { -- 13
+            asteroidAmount = 8,
+            asteroidSpeed = 4,
+            asteroidSize = 2,
+            ufos = {
+                lvl2 = 2,
+            },
+        },
+        { -- 14
+            asteroidAmount = 4,
+            asteroidSpeed = 0,
+            asteroidSize = 2,
+            ufos = {
+                lvl1 = 4,
+            },
+        },
+        { -- 15
+            asteroidAmount = 0,
+            asteroidSpeed = 0,
+            asteroidSize = 0,
+            ufos = {
+                lvl1 = 3,
+                lvl2 = 2,
+                lvl3 = 1,
+            },
+        },
     },
 }
-
-game.saveData = function()
-    -- Save game data
-    Main.data.level = game.level
-    -- Write to file
-    local success, message = filesystem.write("Main.data", binser.serialize(Main.data))
-    if success then
-        t.log("Saved game.")
-    else
-        t.logerror("Failed to write save data: " .. message)
-    end
-end
 
 -- Spawn asteroid
 ---@param parent table?
 ---@param overrides table?
 game.spawnAsteroid = function(parent, overrides)
+    local asteroidSpeed = 0
+    local asteroidSize = 0
+    if game.levels[game.level] then
+        asteroidSpeed = game.levels[game.level].asteroidSpeed
+        asteroidSize = game.levels[game.level].asteroidSize
+    else
+        t.logwarn("Failed to get level asteroid data! Using fallback.")
+    end
     local asteroid = {
         x = 0,
         y = 0,
         moveDir = math.rad(math.random(0, 359)),
-        moveSpeed = math.random(game.asteroidSpeedMin, game.asteroidSpeedMax + game.levels[game.level].asteroidSpeed),
+        moveSpeed = math.random(game.asteroidSpeedMin, game.asteroidSpeedMax + asteroidSpeed),
         facingDir = math.rad(math.random(0, 359)),
         spinSpeed = math.rad(math.random(0, game.asteroidMaxSpin)),
-        size = math.random(2, 3 + game.levels[game.level].asteroidSize),
+        size = math.random(2, 3 + asteroidSize),
         health = 1,
         seed = math.random(0, 100000),
         flashTimer = 0,
@@ -175,11 +241,13 @@ game.spawnUfo = function(level)
     local ufo = {
         x = 0,
         y = 0,
-        health = 3 * level,
         level = level,
+        health = game.ufodata[level].health,
         seed = math.random(0, 100000),
         flashTimer = 0,
-        moveTimer = 0,
+        shootTimer = -math.random(0, game.ufodata[level].shootTime * 100) / 100,
+        moveTimer = -math.random(0, game.ufodata[level].moveTime * 100) / 100,
+        moveDir = 0,
     }
     if math.random(0, 1) == 1 then
         ufo.x = Main.width * math.random(0, 1)
@@ -213,12 +281,34 @@ game.spawnParticle = function(x, y, type, ...)
     table.insert(game.particles, particle)
 end
 
+-- Explosion
+game.spawnExplosion = function(x, y)
+    math.randomseed(game.seed)
+    for i = 1, 20 do
+        local colors = { { 1, 0.5, 0 }, { 1, 0.1, 0 }, { 1, 0.9, 0 }, { 0.6, 0.6, 0.6 } }
+        color = colors[math.random(1, #colors)]
+        xv = math.random(-100, 100) / 100
+        yv = math.random(-100, 100) / 100
+        game.spawnParticle(x, y, "explosion", { color = color, xv = xv, yv = yv })
+    end
+end
+
 -- Next level
 game.nextLevel = function()
-    -- Save game
-    game.saveData()
-
     local level = game.levels[game.level]
+    if not level then
+        t.logwarn("Tried to load an invalid level: " .. game.level)
+        return
+    end
+
+    -- Save game
+    Main.saveData()
+
+    -- Clear lists
+    for i = #game.bullets, 1, -1 do game.bullets[i] = nil end
+    for i = #game.asteroids, 1, -1 do game.asteroids[i] = nil end
+    for i = #game.ufos, 1, -1 do game.ufos[i] = nil end
+
     math.randomseed(game.seed)
 
     -- Spawn asteroids
@@ -234,24 +324,21 @@ game.nextLevel = function()
         end
     end
     -- Spawn ufos
-    if level.ufos and level.ufos.lvl1 then
-        for i = 1, level.ufos.lvl1 do
-            game.spawnUfo(1)
-        end
+    if level.ufos then
+        if level.ufos.lvl1 then for i = 1, level.ufos.lvl1 do game.spawnUfo(1) end end
+        if level.ufos.lvl2 then for i = 1, level.ufos.lvl2 do game.spawnUfo(2) end end
+        if level.ufos.lvl3 then for i = 1, level.ufos.lvl3 do game.spawnUfo(3) end end
     end
 end
 
 function game.load()
-    -- Load game data
-    if filesystem.getInfo("Main.data") then
-        local contents, size = filesystem.read("Main.data")
-        Main.data = binser.deserialize(contents)[1]
-        t.log("Loaded game data. (" .. tostring(size) .. "bytes)")
-    else
-        t.logwarn("No game data to load.")
-    end
     -- Load level
-    game.level = Main.data.level or 1
+    game.level = game.level or 1
+    t.logdebug(table.concat(
+        (function()
+            local t = {}; for k in pairs(Main.data) do table.insert(t, k) end
+            return t
+        end)(), ", "))
     -- Print rng seed
     t.log("Seed: " .. game.seed)
     -- Spawn player in center of screen
@@ -271,7 +358,7 @@ function game.load()
     gfx.setDefaultFilter('linear')
     Main.shaders.pixel = gfx.newShader('assets/shaders/pixel.glsl')
     Main.shaders.pixel:send('amount', Game.pixelation)
-    Main.shaders.pixel:send('size', {Main.width,Main.height})
+    Main.shaders.pixel:send('size', { Main.width, Main.height })
     Main.shaders.stars = gfx.newShader('assets/shaders/stars.glsl')
     -- Create canvas objects
     gfx.setDefaultFilter('linear')
@@ -297,6 +384,8 @@ function game.update(dt)
     game.time = game.time + dt
     Main.shaders.stars:send('time', game.time)
 
+    game.player.iframes = game.player.iframes - dt
+
     -- Rotate player
     if keyboard.isDown("a") or keyboard.isDown("left") then
         game.player.dir = game.player.dir - math.rad(game.player.turnSpeed) * dt
@@ -311,6 +400,13 @@ function game.update(dt)
         game.player.moving = true
     end
     if game.player.moving then
+        -- Smoke particle
+        if math.random(5) == 1 then
+            local dx = math.cos(game.player.dir) * 25
+            local dy = math.sin(game.player.dir) * 25
+            game.spawnParticle(game.player.x + dx, game.player.y + dy, "smoke", { dir = game.player.dir })
+        end
+        -- Add velocity
         local dx = math.cos(game.player.dir)
         local dy = math.sin(game.player.dir)
         game.player.xv = game.player.xv - dx * game.player.moveSpeed * dt
@@ -348,6 +444,9 @@ function game.update(dt)
                 x = game.player.x + math.cos(game.player.dir) * -18,
                 y = game.player.y + math.sin(game.player.dir) * -18,
                 dir = game.player.dir,
+                shooter = 'player',
+                lifetime = game.bulletLifetime,
+                speed = game.bulletSpeed,
                 timer = 0,
             }
             -- Add bullet to table
@@ -359,8 +458,8 @@ function game.update(dt)
     -- Update bullets
     for i, bullet in ipairs(game.bullets) do
         -- Calculate movement of the bullet
-        local dx = math.cos(bullet.dir) * -game.bulletSpeed * dt
-        local dy = math.sin(bullet.dir) * -game.bulletSpeed * dt
+        local dx = math.cos(bullet.dir) * -bullet.speed * dt
+        local dy = math.sin(bullet.dir) * -bullet.speed * dt
         -- Update the bullet's position
         bullet.x = bullet.x + dx
         bullet.y = bullet.y + dy
@@ -379,9 +478,9 @@ function game.update(dt)
         end
         -- Update timer
         bullet.timer = bullet.timer + dt
-        if bullet.timer > game.bulletLifetime then
+        if bullet.timer > bullet.lifetime then
             -- Spawn particle
-            game.spawnParticle(bullet.x, bullet.y, "bulletBlast")
+            game.spawnParticle(bullet.x, bullet.y, "bulletBlast", { shooter = bullet.shooter })
             -- Delete bullet
             table.remove(game.bullets, i)
         end
@@ -417,6 +516,33 @@ function game.update(dt)
         -- Update timers
         ufo.flashTimer = ufo.flashTimer - dt
         ufo.moveTimer = ufo.moveTimer - dt
+        ufo.shootTimer = ufo.shootTimer - dt
+        -- Move
+        if ufo.moveTimer < 0 - game.ufodata[ufo.level].waitTime then
+            ufo.moveTimer = game.ufodata[ufo.level].moveTime
+            ufo.moveDir = math.pi * 2 * math.random()
+        end
+        if ufo.moveTimer > 0 then
+            local speed = game.ufodata[ufo.level].moveSpeed
+            ufo.x = ufo.x + math.cos(ufo.moveDir) * speed * dt
+            ufo.y = ufo.y + math.sin(ufo.moveDir) * speed * dt
+        end
+        -- Shoot
+        if ufo.shootTimer < -game.ufodata[ufo.level].shootTime then
+            ufo.shootTimer = game.ufodata[ufo.level].shootTime
+            -- Create new bullet object
+            local bullet = {
+                x = ufo.x,
+                y = ufo.y,
+                dir = getDirection(game.player.x, game.player.y, ufo.x, ufo.y),
+                shooter = 'ufo',
+                lifetime = game.bulletLifetime * 2 * (game.bulletSpeed / game.ufodata[ufo.level].bulletSpeed),
+                speed = game.ufodata[ufo.level].bulletSpeed,
+                timer = 0,
+            }
+            -- Add bullet to table
+            table.insert(game.bullets, bullet)
+        end
         -- Screen wrap
         if ufo.x < 0 then
             ufo.x = Main.width
@@ -450,7 +576,8 @@ function game.update(dt)
     -- Asteroid collisions
     for i, asteroid in ipairs(game.asteroids) do
         -- Check player + asteroid
-        if collisionWrapped(asteroid.x, asteroid.y, game.player.x, game.player.y, 21 * asteroid.size + game.player.hitboxSize) then
+        if collisionWrapped(asteroid.x, asteroid.y, game.player.x, game.player.y, 21 * asteroid.size + game.player.hitboxSize)
+            and game.player.iframes < 0 then
             -- Player hit an asteroid
             t.logdebug("Player hit an asteroid!")
             game.player.death = true
@@ -460,12 +587,13 @@ function game.update(dt)
         end
         -- Check bullet + asteroid collisions
         for i, bullet in ipairs(game.bullets) do
-            if collisionWrapped(asteroid.x, asteroid.y, bullet.x, bullet.y, 21 * asteroid.size + game.bulletSize) then
+            if collisionWrapped(asteroid.x, asteroid.y, bullet.x, bullet.y, 21 * asteroid.size + game.bulletSize)
+                and bullet.shooter == 'player' then
                 -- A bullet hit an asteroid
                 asteroid.health = asteroid.health - 1
                 asteroid.flashTimer = 0.1
                 -- Spawn particle
-                game.spawnParticle(bullet.x, bullet.y, "bulletBlast")
+                game.spawnParticle(bullet.x, bullet.y, "bulletBlast", { shooter = bullet.shooter })
                 -- Remove bullet
                 table.remove(game.bullets, i)
             end
@@ -474,7 +602,8 @@ function game.update(dt)
     -- UFO collisions
     for i, ufo in ipairs(game.ufos) do
         -- Check player + ufo
-        if collisionWrapped(ufo.x, ufo.y, game.player.x, game.player.y, 40 + game.player.hitboxSize) then
+        if collisionWrapped(ufo.x, ufo.y, game.player.x, game.player.y, 40 + game.player.hitboxSize)
+            and game.player.iframes < 0 then
             -- Player hit a UFO
             t.logdebug("Player hit a UFO!")
             game.player.death = true
@@ -484,12 +613,13 @@ function game.update(dt)
         end
         -- Check bullet + ufo collisions
         for i, bullet in ipairs(game.bullets) do
-            if collisionWrapped(ufo.x, ufo.y, bullet.x, bullet.y, 40 + game.bulletSize * 2) then
+            if collisionWrapped(ufo.x, ufo.y, bullet.x, bullet.y, 40 + game.bulletSize * 2)
+                and bullet.shooter == 'player' then
                 -- A bullet hit a UFO
                 ufo.health = ufo.health - 1
                 ufo.flashTimer = 0.1
                 -- Spawn particle
-                game.spawnParticle(bullet.x, bullet.y, "bulletBlast")
+                game.spawnParticle(bullet.x, bullet.y, "bulletBlast", { shooter = bullet.shooter })
                 -- Remove bullet
                 table.remove(game.bullets, i)
             end
@@ -499,12 +629,13 @@ function game.update(dt)
     for i, bullet in ipairs(game.bullets) do
         -- Check player + bullet
         if collisionWrapped(bullet.x, bullet.y, game.player.x, game.player.y, game.bulletSize + game.player.hitboxSize)
-            and bullet.timer > 0.1 then
+            and bullet.timer > 0.1
+            and game.player.iframes < 0 then
             -- Player hit a bullet
             t.logdebug("Player hit a bullet!")
             game.player.death = true
             -- Spawn particle
-            game.spawnParticle(bullet.x, bullet.y, "bulletBlast")
+            game.spawnParticle(bullet.x, bullet.y, "bulletBlast", { shooter = bullet.shooter })
             -- Remove bullet
             table.remove(game.bullets, i)
         end
@@ -514,7 +645,8 @@ function game.update(dt)
                 -- Bullets collid with each other easier than other things
                 if collisionWrapped(bullet.x, bullet.y, bullet2.x, bullet2.y, game.bulletSize * 2 * 2) then
                     -- Spawn particle
-                    game.spawnParticle((bullet.x + bullet2.x) / 2, (bullet.y + bullet2.y) / 2, "bulletBlast")
+                    game.spawnParticle((bullet.x + bullet2.x) / 2, (bullet.y + bullet2.y) / 2, "bulletBlast",
+                        { shooter = bullet.shooter })
                     -- Delete bullets
                     table.remove(game.bullets, i)
                     if i2 > i then
@@ -528,7 +660,9 @@ function game.update(dt)
 
     -- Check if player was hit
     if game.player.death == true then
+        game.spawnExplosion(game.player.x, game.player.y)
         game.player.death = false
+        game.player.iframes = game.player.iframetime
         game.player.x, game.player.y = Main.width / 2, Main.height / 2
         game.player.xv, game.player.yv = 0, 0
     end
@@ -547,8 +681,8 @@ function game.update(dt)
     -- Blow up UFOs
     for i, ufo in ipairs(game.ufos) do
         if ufo.health < 1 then
+            game.spawnExplosion(ufo.x, ufo.y)
             table.remove(game.ufos, i)
-            game.spawnParticle(ufo.x, ufo.y, "ufoExplode")
         end
     end
 
@@ -557,9 +691,10 @@ function game.update(dt)
         and game.levels[game.level + 1] ~= nil then
         -- Clear bullets
         for i, bullet in ipairs(game.bullets) do
-            game.spawnParticle(bullet.x, bullet.y, "bulletBlast", { size = game.bulletSize })
+            game.spawnParticle(bullet.x, bullet.y, "bulletBlast", { shooter = bullet.shooter })
         end
         game.bullets = {}
+        t.logdebug("Level " .. tostring(game.level) .. " Complete!")
         game.level = game.level + 1
         game.nextLevel()
     end
@@ -567,6 +702,13 @@ function game.update(dt)
     -- Update particles
     for i, particle in ipairs(game.particles) do
         particle.timer = particle.timer + dt
+        if particle.type == 'explosion' then
+            particle.x = particle.x + particle.xv
+            particle.y = particle.y + particle.yv
+        elseif particle.type == 'smoke' then
+            particle.x = particle.x + math.cos(particle.dir)
+            particle.y = particle.y + math.sin(particle.dir)
+        end
     end
 end
 
@@ -602,21 +744,6 @@ function game.draw()
     gfx.rectangle('fill', 0, 0, Main.width, Main.height)
     gfx.setShader()
 
-    -- Draw bullets
-    for i, bullet in ipairs(game.bullets) do
-        gfx.push()
-        gfx.translate(bullet.x, bullet.y)
-        gfx.setColor(0, 1, 0)
-        if game.fastGraphics then
-            -- Don't draw wrapped
-            drawTransformed(0, 0, 0, 0, bullet.dir + math.pi, gfx.circle, "fill", 0, 0, game.bulletSize)
-        else
-            -- Draw wrapped
-            drawWrapped(0, 0, bullet.dir + math.pi, gfx.circle, "fill", 0, 0, game.bulletSize)
-        end
-        gfx.pop()
-    end
-
     -- Draw player
     -- Position player
     gfx.push()
@@ -630,6 +757,11 @@ function game.draw()
     end
     -- Draw player
     gfx.setColor(0, 0, 1)
+    local interval = 0.1
+    if game.player.iframes >= 0
+        and (game.time % (interval * 2)) < interval then
+        gfx.setColor(1, 1, 1)
+    end
     drawWrapped(0, 0, game.player.dir, gfx.polygon, "fill", -18 * size, 0, 12 * size, -12 * size, 12 * size, 12 * size)
     gfx.pop()
 
@@ -670,6 +802,8 @@ function game.draw()
         drawWrapped(0, 0, 0, gfx.circle, "fill", 0, -30, 12)
         -- Glass
         gfx.setColor(0, 0, 1, 0.5)
+        if ufo.level == 2 then gfx.setColor(1, 0, 0, 0.5) end
+        if ufo.level == 3 then gfx.setColor(0, 1, 0, 0.5) end
         if ufo.flashTimer > 0 then
             gfx.setColor(1, 1, 1)
         end
@@ -681,12 +815,16 @@ function game.draw()
         drawWrapped(0, 0, 0, gfx.polygon, "fill", -16, 24, 16, 24, 0, 36)
         -- Body
         gfx.setColor(0.4, 0.4, 0.5)
+        if ufo.level == 2 then gfx.setColor(0.5, 0.4, 0.4) end
+        if ufo.level == 3 then gfx.setColor(0.4, 0.5, 0.4) end
         if ufo.flashTimer > 0 then
             gfx.setColor(1, 1, 1)
         end
         drawWrapped(0, 0, 0, gfx.polygon, "fill", -76, 0, -32, 24, 32, 24, 76, 0, 32, -24, -32, -24)
         -- Body gap
         gfx.setColor(0.2, 0.2, 0.25)
+        if ufo.level == 2 then gfx.setColor(0.25, 0.2, 0.2) end
+        if ufo.level == 3 then gfx.setColor(0.2, 0.25, 0.2) end
         if ufo.flashTimer > 0 then
             gfx.setColor(0, 0, 0, 0)
         end
@@ -696,23 +834,64 @@ function game.draw()
         math.randomseed(game.seed)
     end
 
+    -- Draw bullets
+    for i, bullet in ipairs(game.bullets) do
+        gfx.push()
+        gfx.translate(bullet.x, bullet.y)
+        gfx.setColor(0, 1, 0)
+        if bullet.shooter == 'ufo' then gfx.setColor(1, 0, 0) end
+        if game.fastGraphics then
+            -- Don't draw wrapped
+            drawTransformed(0, 0, 0, 0, bullet.dir + math.pi, gfx.circle, "fill", 0, 0, game.bulletSize)
+        else
+            -- Draw wrapped
+            drawWrapped(0, 0, bullet.dir + math.pi, gfx.circle, "fill", 0, 0, game.bulletSize)
+        end
+        gfx.pop()
+    end
+
     -- Draw particles
     for i, particle in ipairs(game.particles) do
         gfx.push()
         gfx.translate(particle.x, particle.y)
         if particle.type == "asteroidSplit" then
+            -- Asteroid split
             if particle.timer > 0.5 then
                 table.remove(game.particles, i)
             end
             gfx.setColor(1, 1, 1, 1 - particle.timer * 2)
             gfx.circle("fill", 0, 0, particle.size * 0.75 + particle.timer * 75)
-        end
-        if particle.type == "bulletBlast" then
+        elseif particle.type == "bulletBlast" then
+            -- Bullet blast
             if particle.timer > 0.25 then
                 table.remove(game.particles, i)
             end
-            gfx.setColor(0.5, 1, 0.5, 1 - particle.timer * 4)
+            local alpha = 1 - particle.timer * 4
+            gfx.setColor(0.5, 1, 0.5, alpha)
+            if particle.shooter == 'ufo' then gfx.setColor(1, 0.5, 0.5, alpha) end
             gfx.circle("fill", 0, 0, game.bulletSize * 0.75 + particle.timer * 50)
+        elseif particle.type == "explosion" then
+            -- Explosion
+            local speed = math.sqrt(particle.xv ^ 2 + particle.yv ^ 2)
+            local lifetime = speed * 2 - particle.timer
+            if particle.timer > lifetime then
+                table.remove(game.particles, i)
+            end
+            local alpha = 1 - particle.timer * t.inverse(lifetime)
+            local r, g, b = particle.color[1], particle.color[2], particle.color[3]
+            gfx.setColor(r, g, b, alpha)
+            local size = 15 - particle.timer * 10
+            gfx.circle("fill", 0, 0, size)
+        elseif particle.type == "smoke" then
+            -- Smoke
+            local lifetime = 0.75
+            if particle.timer > lifetime then
+                table.remove(game.particles, i)
+            end
+            local alpha = 1 - particle.timer * t.inverse(lifetime)
+            gfx.setColor(0.5, 0.5, 0.5, alpha / 2)
+            local size = 15 - particle.timer * 10
+            gfx.circle("fill", 0, 0, size)
         end
         gfx.pop()
     end
@@ -741,6 +920,17 @@ function game.draw()
         end
     end
 
+    -- Draw paused
+    if Game.paused then
+        gfx.setColor(0, 0, 0, 0.5)
+        gfx.rectangle('fill', 0, 0, Main.width, Main.height)
+        gfx.setColor(1, 1, 1)
+        gfx.setFont(Main.fonts.Visitor)
+        local scale = 2
+        local width = Main.fonts.Visitor:getWidth("Paused") * scale
+        gfx.print("Paused", Main.width * 0.5 + (width * -0.5), Main.height * 0.3, 0, scale)
+    end
+
     -- Draw text
     gfx.setColor(1, 1, 1)
     gfx.setDefaultFilter('nearest')
@@ -764,7 +954,9 @@ function game.draw()
     local offsetX = (screenWidth - Main.width * scale) / 2
     local offsetY = (screenHeight - Main.height * scale) / 2
     -- Game canvas
-    gfx.setShader(Main.shaders.pixel)
+    if Game.pixelShaderEnabled then
+        gfx.setShader(Main.shaders.pixel)
+    end
     gfx.draw(Main.canvases.game, offsetX, offsetY, 0, scale)
     gfx.setShader()
     gfx.draw(Main.canvases.ui, offsetX, offsetY, 0, scale)
